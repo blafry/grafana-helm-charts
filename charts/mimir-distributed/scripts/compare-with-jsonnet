@@ -1,0 +1,27 @@
+#!/bin/bash
+
+set -e
+
+cd "$(dirname "$0")"
+
+[[ -d ../k8s-diff/rendered-manifests/helm ]] && rm -r ../k8s-diff/rendered-manifests/helm
+
+helm template mimir ../ -f ../k8s-diff/helm-workspace/values.yaml --output-dir ../k8s-diff/rendered-manifests/helm
+
+[[ -d ../k8s-diff/rendered-manifests/jsonnet ]] && rm -r ../k8s-diff/rendered-manifests/jsonnet
+
+pushd ../k8s-diff/jsonnet-workspace
+    jb install
+    tk export ../rendered-manifests/jsonnet environments/default
+popd
+
+cd ../../../scripts/k8s-diff/
+
+go run . -dir-a ../../charts/mimir-distributed/k8s-diff/rendered-manifests/jsonnet -dir-b ../../charts/mimir-distributed/k8s-diff/rendered-manifests/helm \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/ignored_objects.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/renames.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/helm_labels.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/memberlist.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/memcached.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/services.yaml \
+    -rules ../../charts/mimir-distributed/k8s-diff/rules/ignored_fields.yaml
